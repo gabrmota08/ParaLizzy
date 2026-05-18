@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escalas del Cosmos</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@200;300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #07080d;
+    --text: #e8e4dd;
+    --muted: #5a5a6e;
+    --accent: #c9a96e;
+    --dim: rgba(232,228,221,0.06);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Jost', sans-serif;
+    font-weight: 200;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: relative;
+    padding: 40px 0;
+  }
+
+  /* ── Starfield ── */
+  canvas#stars {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ── Layout ── */
+  .shell {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+    max-width: 520px;
+    padding: 40px 24px;
+  }
+
+  /* ── Header ── */
+  .eyebrow {
+    font-family: 'Jost', sans-serif;
+    font-weight: 300;
+    font-size: 0.65rem;
+    letter-spacing: 0.35em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 48px;
+    opacity: 0;
+    animation: fadeUp 1s 0.2s forwards;
+  }
+
+  /* ── Stage ── */
+  .stage {
+    width: 320px;
+    height: 320px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 52px;
+  }
+
+  /* Orbit ring decorativo */
+  .stage::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.04);
+    transition: opacity 0.6s;
+  }
+
+  /* ── Contenedor de Imágenes Cósmicas ── */
+  .orb-img {
+    position: absolute;
+    width: 240px;
+    height: 240px;
+    object-fit: contain;
+    border-radius: 50%; /* Mantiene forma circular si usas fotos cuadradas */
+    transition:
+      width 1.4s cubic-bezier(0.23, 1, 0.32, 1),
+      height 1.4s cubic-bezier(0.23, 1, 0.32, 1),
+      opacity 0.5s ease,
+      filter 1.4s ease;
+    will-change: width, height, filter;
+  }
+
+  /* Efectos de resplandor personalizados según el nivel */
+  .glow-sol { filter: drop-shadow(0 0 30px rgba(245,166,35,0.4)); }
+  .glow-galaxy { filter: drop-shadow(0 0 30px rgba(74,128,212,0.3)); }
+  .glow-virgo { filter: drop-shadow(0 0 30px rgba(155,89,182,0.3)); }
+  .glow-universe { filter: drop-shadow(0 0 30px rgba(192,57,43,0.3)); }
+  .glow-final { filter: drop-shadow(0 0 40px rgba(232,64,90,0.4)); border-radius: 20px; } /* Bordes suaves para tu foto */
+
+  /* Estados de transición */
+  .orb-img.visible { opacity: 1; }
+  
+  .orb-img.shrink {
+    width: 6px !important;
+    height: 6px !important;
+    opacity: 0.4;
+    filter: blur(1px);
+    transition:
+      width 0.9s cubic-bezier(0.55, 0, 1, 0.45),
+      height 0.9s cubic-bezier(0.55, 0, 1, 0.45),
+      opacity 0.9s ease,
+      filter 0.9s ease;
+  }
+
+  .orb-img.enter {
+    animation: orbEnter 1s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  }
+
+  @keyframes orbEnter {
+    from { transform: scale(0.15); opacity: 0; filter: blur(12px); }
+    to   { transform: scale(1);    opacity: 1; filter: blur(0px); }
+  }
+
+  /* Punto diminuto que representa el objeto anterior */
+  .relic {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 3;
+    animation: relicPulse 2.5s ease-in-out infinite;
+  }
+  .relic.visible { opacity: 0.9; }
+  @keyframes relicPulse {
+    0%, 100% { transform: scale(1);   opacity: 0.7; }
+    50%      { transform: scale(1.8); opacity: 1; }
+  }
+
+  /* ── Texto ── */
+  .info {
+    text-align: center;
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 44px;
+  }
+
+  .info-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: 2.6rem;
+    letter-spacing: 0.03em;
+    line-height: 1;
+    color: var(--text);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .info-name.visible { opacity: 1; transform: translateY(0); }
+
+  .info-scale {
+    font-size: 0.7rem;
+    font-weight: 300;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    text-transform: uppercase;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.7s 0.1s ease, transform 0.7s 0.1s ease;
+  }
+  .info-scale.visible { opacity: 1; transform: translateY(0); }
+
+  .info-desc {
+    font-size: 0.88rem;
+    font-weight: 200;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 380px;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.7s 0.2s ease, transform 0.7s 0.2s ease;
+  }
+  .info-desc.visible { opacity: 1; transform: translateY(0); }
+
+  /* ── Botón ── */
+  .btn {
+    font-family: 'Jost', sans-serif;
+    font-weight: 300;
+    font-size: 0.72rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--text);
+    background: none;
+    border: 1px solid rgba(232,228,221,0.18);
+    padding: 14px 32px;
+    border-radius: 60px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.4s, color 0.4s;
+    opacity: 0;
+    animation: fadeUp 1s 0.6s forwards;
+  }
+  .btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.04);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .btn:hover::before { opacity: 1; }
+  .btn:hover { border-color: rgba(232,228,221,0.45); }
+  .btn:active { transform: scale(0.97); }
+
+  /* Ripple en click */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    width: 10px;
+    height: 10px;
+    transform: scale(0);
+    animation: rippleAnim 0.6s linear;
+    pointer-events: none;
+  }
+  @keyframes rippleAnim {
+    to { transform: scale(30); opacity: 0; }
+  }
+
+  /* ── Contador de nivel ── */
+  .level-dots {
+    display: flex;
+    gap: 8px;
+    margin-top: 24px;
+    opacity: 0;
+    animation: fadeUp 1s 0.8s forwards;
+  }
+  .dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.5s, transform 0.5s;
+  }
+  .dot.active {
+    background: var(--accent);
+    transform: scale(1.4);
+  }
+
+  /* ── Línea divisora sutil ── */
+  .divider {
+    width: 1px;
+    height: 32px;
+    background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.12), transparent);
+    margin-bottom: 52px;
+    opacity: 0;
+    animation: fadeUp 1s 0.4s forwards;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Flash de transición */
+  .flash {
+    position: fixed;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .flash.go {
+    animation: flashAnim 0.5s ease forwards;
+  }
+  @keyframes flashAnim {
+    0%   { opacity: 0; }
+    15%  { opacity: 0.06; }
+    100% { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+<div class="flash" id="flash"></div>
+
+<div class="shell">
+  <p class="eyebrow" id="eyebrow">Escalas del Cosmos</p>
+
+  <div class="stage" id="stage">
+    <!-- Las imágenes se insertan dinámicamente aquí -->
+    <div class="relic" id="relic"></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="info">
+    <div class="info-name" id="info-name">Sol</div>
+    <div class="info-scale" id="info-scale">Diámetro · 1.39 millones de km</div>
+    <p class="info-desc" id="info-desc">Una estrella monumental comparada con la Tierra. Guarda esta escala en tu memoria — pronto se volverá casi invisible.</p>
+  </div>
+
+  <button class="btn" id="btn" onclick="advance(event)">Alejar perspectiva</button>
+
+  <div class="level-dots" id="dots"></div>
+</div>
+
+<script>
+const levels = [
+  {
+    name: "Sol",
+    scale: "Diámetro · 1.39 millones de km",
+    desc: "Una estrella monumental comparada con la Tierra. Guarda esta escala en tu memoria — pronto se volverá casi invisible.",
+    imgSrc: "sol.png",
+    glowClass: "glow-sol",
+    relicColor: null,
+    btn: "Alejar perspectiva",
+    eyebrow: "Escalas del Cosmos"
+  },
+  {
+    name: "Vía Láctea",
+    scale: "Diámetro · 100,000 años luz",
+    desc: "Ese punto dorado que parpadea en el centro — ese es el Sol. La galaxia que habitamos alberga más de cien mil millones de estrellas como él.",
+    imgSrc: "via_lactea.png",
+    glowClass: "glow-galaxy",
+    relicColor: "#f5a623",
+    btn: "Seguir alejando",
+    eyebrow: "Escalas del Cosmos"
+  },
+  {
+    name: "Supercúmulo de Virgo",
+    scale: "Extensión · 110 millones de años luz",
+    desc: "Ese punto azul casi imperceptible es la Vía Láctea entera. Aquí vivimos dentro de una red que agrupa miles de galaxias.",
+    imgSrc: "supercumulo_virgo.png",
+    glowClass: "glow-virgo",
+    relicColor: "#4a80d4",
+    btn: "Ir más lejos aún",
+    eyebrow: "Escalas del Cosmos"
+  },
+  {
+    name: "El Universo Observable",
+    scale: "Diámetro · 93,000 millones de años luz",
+    desc: "Esa mota violácea en el centro es el supercúmulo entero. Todo lo que la ciencia puede observar cabe en esta esfera. Todo.",
+    imgSrc: "universo_observable.png",
+    glowClass: "glow-universe",
+    relicColor: "#9b59b6",
+    btn: "Ver la escala final",
+    eyebrow: "Escalas del Cosmos"
+  },
+  {
+    name: "Cuánto te extrañé",
+    scale: "Escala · Infinito",
+    desc: "Dos días sin hablar son suficientes para que el universo entero se quede absurdamente chico. Qué bueno que volviste.",
+    imgSrc: "extrañar.png",
+    glowClass: "glow-final",
+    relicColor: "#c0392b",
+    btn: "Empezar de nuevo",
+    eyebrow: "Fin del viaje"
+  }
+];
+
+let current = 0;
+let transitioning = false;
+let currentOrb = null;
+
+// ── Starfield ──
+const canvas = document.getElementById('stars');
+const ctx = canvas.getContext('2d');
+let stars = [];
+
+function initStars() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  stars = Array.from({length: 180}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    r: Math.random() * 0.9 + 0.1,
+    a: Math.random(),
+    s: Math.random() * 0.003 + 0.001
+  }));
+}
+function drawStars() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  stars.forEach(s => {
+    s.a += s.s;
+    const alpha = 0.3 + Math.sin(s.a) * 0.3;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(220,215,205,${alpha})`;
+    ctx.fill();
+  });
+  requestAnimationFrame(drawStars);
+}
+initStars();
+drawStars();
+window.addEventListener('resize', initStars);
+
+// ── Dots ──
+function buildDots() {
+  const dots = document.getElementById('dots');
+  dots.innerHTML = '';
+  levels.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === current ? ' active' : '');
+    dots.appendChild(d);
+  });
+}
+
+// ── Text reveal ──
+function revealText() {
+  ['info-name','info-scale','info-desc'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('visible');
+    setTimeout(() => el.classList.add('visible'), 80 + i * 80);
+  });
+}
+
+// ── Initial render ──
+function renderFirst() {
+  const stage = document.getElementById('stage');
+  const img = document.createElement('img');
+  img.className = 'orb-img ' + levels[0].glowClass + ' visible enter';
+  img.src = levels[0].imgSrc;
+  stage.insertBefore(img, stage.firstChild);
+  currentOrb = img;
+  revealText();
+  buildDots();
+}
+renderFirst();
+
+// ── Advance ──
+function advance(e) {
+  if (transitioning) return;
+  transitioning = true;
+
+  // Ripple
+  const btn = document.getElementById('btn');
+  const rect = btn.getBoundingClientRect();
+  const rip = document.createElement('div');
+  rip.className = 'ripple';
+  rip.style.left = (e.clientX - rect.left - 5) + 'px';
+  rip.style.top  = (e.clientY - rect.top  - 5) + 'px';
+  btn.appendChild(rip);
+  setTimeout(() => rip.remove(), 650);
+
+  // Flash sutil
+  const flash = document.getElementById('flash');
+  flash.classList.remove('go');
+  void flash.offsetWidth;
+  flash.classList.add('go');
+
+  // Ocultar texto
+  ['info-name','info-scale','info-desc'].forEach(id => {
+    document.getElementById(id).classList.remove('visible');
+  });
+
+  // Encoger imagen actual
+  if (currentOrb) {
+    currentOrb.classList.remove('visible');
+    currentOrb.classList.add('shrink');
+  }
+
+  const prevOrb = currentOrb;
+
+  setTimeout(() => {
+    // Siguiente nivel
+    current = (current + 1) % levels.length;
+    const lv = levels[current];
+    document.getElementById('eyebrow').textContent = lv.eyebrow;
+
+    // Remover imagen anterior
+    if (prevOrb) setTimeout(() => prevOrb.remove(), 300);
+
+    // Configurar el puntito de referencia (relic)
+    const relic = document.getElementById('relic');
+    relic.classList.remove('visible');
+    relic.style.background = '';
+    relic.style.boxShadow  = '';
+
+    if (lv.relicColor) {
+      relic.style.background  = lv.relicColor;
+      relic.style.boxShadow   = `0 0 8px ${lv.relicColor}`;
+    }
+
+    // Crear la nueva imagen en pantalla
+    const stage = document.getElementById('stage');
+    const newImg = document.createElement('img');
+    newImg.className = 'orb-img ' + lv.glowClass;
+    newImg.src = lv.imgSrc;
+    stage.insertBefore(newImg, stage.firstChild);
+    currentOrb = newImg;
+
+    // Animaciones de entrada
+    setTimeout(() => newImg.classList.add('enter'), 30);
+    setTimeout(() => newImg.classList.add('visible'), 60);
+    
+    if (lv.relicColor) {
+      setTimeout(() => relic.classList.add('visible'), 800);
+    }
+
+    // Actualizar textos y botón
+    document.getElementById('info-name').textContent  = lv.name;
+    document.getElementById('info-scale').textContent = lv.scale;
+    document.getElementById('info-desc').textContent  = lv.desc;
+    document.getElementById('btn').textContent        = lv.btn;
+
+    revealText();
+    buildDots();
+    setTimeout(() => { transitioning = false; }, 400);
+  }, 950); // espera a que la imagen previa encoja
+}
+</script>
+</body>
+</html>
